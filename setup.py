@@ -235,7 +235,7 @@ def make_C_stable_extension():
 
 def find_libpng():
     # Returns (found, include dir, library dir, library name)
-    if sys.platform in ("linux", "darwin", "aix"):
+    if sys.platform != "win32":
         libpng_config = shutil.which("libpng-config")
         if libpng_config is None:
             warnings.warn("libpng-config not found")
