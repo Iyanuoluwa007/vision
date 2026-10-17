@@ -1051,7 +1051,8 @@ class ElasticTransform(Transform):
 
     Args:
         alpha (float or sequence of floats, optional): Magnitude of displacements.
-            Default is 50.0. A single value is ``[alpha, alpha]``.
+            Default is 50.0. A single value is ``[alpha, alpha]``. Values should be non-negative: the random
+            offsets are symmetric around zero, so a negative value has the same effect as its absolute value.
         sigma (float or sequence of floats, optional): Smoothness of displacements.
             Default is 5.0. A single value is ``[sigma, sigma]``.
         interpolation (str or InterpolationMode, optional): Desired interpolation enum defined by

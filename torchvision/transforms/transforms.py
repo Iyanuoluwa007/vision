@@ -2062,6 +2062,8 @@ class ElasticTransform(torch.nn.Module):
 
     Args:
         alpha (float or sequence of floats): Magnitude of displacements. Default is 50.0.
+            Values should be non-negative: the random offsets are symmetric around zero, so a negative
+            value has the same effect as its absolute value.
         sigma (float or sequence of floats): Smoothness of displacements. Default is 5.0.
         interpolation (InterpolationMode): Desired interpolation enum defined by
             :class:`torchvision.transforms.InterpolationMode`. Default is ``InterpolationMode.BILINEAR``.
