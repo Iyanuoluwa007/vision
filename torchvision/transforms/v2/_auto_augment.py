@@ -531,7 +531,8 @@ class AugMix(_AutoAugmentBase):
         chain_depth (int, optional): The depth of augmentation chains. A negative value denotes stochastic depth sampled from the interval [1, 3].
             Default is ``-1``.
         alpha (float, optional): The hyperparameter for the probability distributions. Default is ``1.0``.
-        all_ops (bool, optional): Use all operations (including brightness, contrast, color and sharpness). Default is ``True``.
+        all_ops (bool, optional): If ``True``, all operations are used. If ``False``, the brightness, contrast,
+            color and sharpness operations are excluded and only the remaining ones are used. Default is ``True``.
         interpolation (str or InterpolationMode, optional): Desired interpolation enum defined by
             :class:`torchvision.transforms.v2.InterpolationMode`.
             Accepted string values are ``"nearest"``, ``"nearest-exact"``, ``"bilinear"``, ``"bicubic"``,
