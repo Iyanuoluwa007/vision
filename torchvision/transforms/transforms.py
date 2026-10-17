@@ -1764,7 +1764,10 @@ class GaussianBlur(torch.nn.Module):
     to have [..., C, H, W] shape, where ... means at most one leading dimension.
 
     Args:
-        kernel_size (int or sequence): Size of the Gaussian kernel.
+        kernel_size (int or sequence): Size of the Gaussian kernel. If a single int is provided,
+            a square kernel is used. If a sequence of two ints is provided, it is interpreted as
+            ``(width, height)``, i.e. the size along the horizontal and vertical axes respectively.
+            Note that this differs from the ``(height, width)`` order used for image sizes.
         sigma (float or tuple of float (min, max)): Standard deviation to be used for
             creating kernel to perform blurring. If float, sigma is fixed. If it is tuple
             of float (min, max), sigma is chosen uniformly at random to lie in the

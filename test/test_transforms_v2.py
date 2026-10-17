@@ -3971,6 +3971,22 @@ class TestGaussianBlur:
     def test_transform(self, make_input, device, sigma):
         check_transform(transforms.GaussianBlur(kernel_size=3, sigma=sigma), make_input(device=device))
 
+    @pytest.mark.parametrize("make_input", [make_image_tensor, make_image_pil])
+    def test_transform_kernel_size_is_width_height(self, make_input):
+        # A single bright pixel blurred with kernel_size=(1, 9) must only spread vertically,
+        # since kernel_size is documented as (width, height).
+        image = torch.zeros(1, 9, 9, dtype=torch.uint8)
+        image[0, 4, 4] = 255
+        if make_input is make_image_pil:
+            image = F.to_pil_image(image)
+
+        output = transforms.GaussianBlur(kernel_size=(1, 9), sigma=2.0)(image)
+        if make_input is make_image_pil:
+            output = F.pil_to_tensor(output)
+
+        assert output[0, :, 4].nonzero().numel() > 1
+        assert output[0, 4, :].nonzero().numel() == 1
+
     def test_assertions(self):
         with pytest.raises(ValueError, match="Kernel size should be a tuple/list of two integers"):
             transforms.GaussianBlur([10, 12, 14])
