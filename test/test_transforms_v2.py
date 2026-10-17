@@ -6086,6 +6086,14 @@ class TestAdjustSharpness:
         with pytest.raises(ValueError, match="is not non-negative"):
             F.adjust_sharpness(make_image(), sharpness_factor=-1)
 
+    @pytest.mark.parametrize("make_input", [make_image_tensor, make_image_pil, make_image, make_video])
+    @pytest.mark.parametrize(
+        "fn", [F.adjust_sharpness, transform_cls_to_functional(transforms.RandomAdjustSharpness, p=1)]
+    )
+    def test_negative_sharpness_factor_error(self, make_input, fn):
+        with pytest.raises(ValueError, match="is not non-negative"):
+            fn(make_input(), sharpness_factor=-1)
+
     @pytest.mark.parametrize("sharpness_factor", [0.1, 0.5, 1.0])
     @pytest.mark.parametrize(
         "fn", [F.adjust_sharpness, transform_cls_to_functional(transforms.RandomAdjustSharpness, p=1)]

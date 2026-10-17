@@ -376,6 +376,8 @@ def solarize(img: Image.Image, threshold: int) -> Image.Image:
 def adjust_sharpness(img: Image.Image, sharpness_factor: float) -> Image.Image:
     if not _is_pil_image(img):
         raise TypeError(f"img should be PIL Image. Got {type(img)}")
+    if sharpness_factor < 0:
+        raise ValueError(f"sharpness_factor ({sharpness_factor}) is not non-negative.")
 
     enhancer = ImageEnhance.Sharpness(img)
     img = enhancer.enhance(sharpness_factor)
