@@ -123,6 +123,11 @@ napoleon_use_ivar = True
 napoleon_numpy_docstring = False
 napoleon_google_docstring = True
 
+# Render default argument values as written in the source (e.g. ``(3.0 / 4.0, 4.0 / 3.0)`` or
+# ``InterpolationMode.BILINEAR``) instead of their repr (e.g. ``1.3333333333333333`` or
+# ``<InterpolationMode.BILINEAR: 'bilinear'>``).
+autodoc_preserve_defaults = True
+
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
