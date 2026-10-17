@@ -298,7 +298,7 @@ def main(args):
 
     if args.test_only:
         torch.backends.cudnn.deterministic = True
-        evaluate(model, data_loader_test, device=device)
+        evaluate(model, data_loader_test, device=device, print_freq=args.print_freq)
         return
 
     print("Start training")
@@ -322,7 +322,7 @@ def main(args):
             utils.save_on_master(checkpoint, os.path.join(args.output_dir, "checkpoint.pth"))
 
         # evaluate after every epoch
-        evaluate(model, data_loader_test, device=device)
+        evaluate(model, data_loader_test, device=device, print_freq=args.print_freq)
 
     total_time = time.time() - start_time
     total_time_str = str(datetime.timedelta(seconds=int(total_time)))
