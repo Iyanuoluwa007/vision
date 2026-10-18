@@ -1,6 +1,6 @@
 import warnings
 from collections.abc import Sequence
-from typing import Any, Callable, Optional, Union
+from typing import Any, Callable, Literal, Optional, Union
 
 import PIL.Image
 
@@ -11,6 +11,7 @@ from torchvision import transforms as _transforms, tv_tensors
 from torchvision.transforms.v2 import functional as F, Transform
 
 from ._utils import (
+    _check_padding_mode_arg,
     _parse_labels_getter,
     _setup_number_or_seq,
     _setup_size,
@@ -177,7 +178,8 @@ class Normalize(Transform):
 class GaussianBlur(Transform):
     """Blurs image with randomly chosen Gaussian blur kernel.
 
-    The convolution will be using reflection padding corresponding to the kernel size, to maintain the input shape.
+    The input is padded according to ``padding_mode`` (reflection padding by default) by an amount corresponding to
+    the kernel size, to maintain the input shape.
 
     If the input is a Tensor, it is expected
     to have [..., C, H, W] shape, where ... means an arbitrary number of leading dimensions.
@@ -188,12 +190,41 @@ class GaussianBlur(Transform):
             creating kernel to perform blurring. If float, sigma is fixed. If it is tuple
             of float (min, max), sigma is chosen uniformly at random to lie in the
             given range.
+        padding_mode (str, optional): Type of padding applied to the borders before blurring. Should be:
+            constant, edge, reflect or symmetric. Default is "reflect".
+
+            - constant: pads with zeros.
+
+            - edge: pads with the last value at the edge of the image.
+
+            - reflect: pads with reflection of image without repeating the last value on the edge.
+              For example, padding [1, 2, 3, 4] with 2 elements on both sides in reflect mode
+              will result in [3, 2, 1, 2, 3, 4, 3, 2]
+
+            - symmetric: pads with reflection of image repeating the last value on the edge.
+              For example, padding [1, 2, 3, 4] with 2 elements on both sides in symmetric mode
+              will result in [2, 1, 1, 2, 3, 4, 4, 3]. Unlike reflect, this preserves the mean
+              intensity of the image.
     """
 
     _v1_transform_cls = _transforms.GaussianBlur
 
+    def _extract_params_for_v1_transform(self) -> dict[str, Any]:
+        params = super()._extract_params_for_v1_transform()
+
+        if params.pop("padding_mode") != "reflect":
+            raise ValueError(
+                f"{type(self).__name__}() can only be scripted for padding_mode='reflect', "
+                f"but got {self.padding_mode!r}."
+            )
+
+        return params
+
     def __init__(
-        self, kernel_size: Union[int, Sequence[int]], sigma: Union[int, float, Sequence[float]] = (0.1, 2.0)
+        self,
+        kernel_size: Union[int, Sequence[int]],
+        sigma: Union[int, float, Sequence[float]] = (0.1, 2.0),
+        padding_mode: Literal["constant", "edge", "reflect", "symmetric"] = "reflect",
     ) -> None:
         super().__init__()
         self.kernel_size = _setup_size(kernel_size, "Kernel size should be a tuple/list of two integers")
@@ -206,12 +237,15 @@ class GaussianBlur(Transform):
         if not 0.0 < self.sigma[0] <= self.sigma[1]:
             raise ValueError(f"sigma values should be positive and of the form (min, max). Got {self.sigma}")
 
+        _check_padding_mode_arg(padding_mode)
+        self.padding_mode = padding_mode
+
     def make_params(self, flat_inputs: list[Any]) -> dict[str, Any]:
         sigma = torch.empty(1).uniform_(self.sigma[0], self.sigma[1]).item()
         return dict(sigma=[sigma, sigma])
 
     def transform(self, inpt: Any, params: dict[str, Any]) -> Any:
-        return self._call_kernel(F.gaussian_blur, inpt, self.kernel_size, **params)
+        return self._call_kernel(F.gaussian_blur, inpt, self.kernel_size, padding_mode=self.padding_mode, **params)
 
 
 class GaussianNoise(Transform):

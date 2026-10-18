@@ -3,7 +3,7 @@ from typing import Optional
 
 import PIL.Image
 import torch
-from torch.nn.functional import conv2d, pad as torch_pad
+from torch.nn.functional import conv2d
 
 from torchvision import tv_tensors
 from torchvision.transforms._functional_tensor import _max_value
@@ -11,6 +11,7 @@ from torchvision.transforms.functional import pil_to_tensor, to_pil_image
 
 from torchvision.utils import _log_api_usage_once
 
+from ._geometry import _pad_with_scalar_fill
 from ._meta import _convert_bounding_box_format
 
 from ._utils import _get_kernel, _register_kernel_internal, is_pure_tensor
@@ -72,15 +73,17 @@ def normalize_video(video: torch.Tensor, mean: list[float], std: list[float], in
     return normalize_image(video, mean, std, inplace=inplace)
 
 
-def gaussian_blur(inpt: torch.Tensor, kernel_size: list[int], sigma: Optional[list[float]] = None) -> torch.Tensor:
+def gaussian_blur(
+    inpt: torch.Tensor, kernel_size: list[int], sigma: Optional[list[float]] = None, padding_mode: str = "reflect"
+) -> torch.Tensor:
     """See :class:`~torchvision.transforms.v2.GaussianBlur` for details."""
     if torch.jit.is_scripting():
-        return gaussian_blur_image(inpt, kernel_size=kernel_size, sigma=sigma)
+        return gaussian_blur_image(inpt, kernel_size=kernel_size, sigma=sigma, padding_mode=padding_mode)
 
     _log_api_usage_once(gaussian_blur)
 
     kernel = _get_kernel(gaussian_blur, type(inpt))
-    return kernel(inpt, kernel_size=kernel_size, sigma=sigma)
+    return kernel(inpt, kernel_size=kernel_size, sigma=sigma, padding_mode=padding_mode)
 
 
 def _get_gaussian_kernel1d(kernel_size: int, sigma: float, dtype: torch.dtype, device: torch.device) -> torch.Tensor:
@@ -102,7 +105,7 @@ def _get_gaussian_kernel2d(
 @_register_kernel_internal(gaussian_blur, torch.Tensor)
 @_register_kernel_internal(gaussian_blur, tv_tensors.Image)
 def gaussian_blur_image(
-    image: torch.Tensor, kernel_size: list[int], sigma: Optional[list[float]] = None
+    image: torch.Tensor, kernel_size: list[int], sigma: Optional[list[float]] = None, padding_mode: str = "reflect"
 ) -> torch.Tensor:
     # TODO: consider deprecating integers from sigma on the future
     if isinstance(kernel_size, int):
@@ -132,6 +135,12 @@ def gaussian_blur_image(
         if s <= 0.0:
             raise ValueError(f"sigma should have positive values. Got {sigma}")
 
+    if padding_mode not in ("constant", "edge", "reflect", "symmetric"):
+        raise ValueError(
+            f"`padding_mode` should be either `'constant'`, `'edge'`, `'reflect'` or `'symmetric'`, "
+            f"but got `'{padding_mode}'`."
+        )
+
     if image.numel() == 0:
         return image
 
@@ -151,7 +160,7 @@ def gaussian_blur_image(
 
     # padding = (left, right, top, bottom)
     padding = [kernel_size[0] // 2, kernel_size[0] // 2, kernel_size[1] // 2, kernel_size[1] // 2]
-    output = torch_pad(output, padding, mode="reflect")
+    output = _pad_with_scalar_fill(output, padding, fill=0, padding_mode=padding_mode)
     output = conv2d(output, kernel, groups=shape[-3])
 
     if ndim == 3:
@@ -167,18 +176,18 @@ def gaussian_blur_image(
 
 @_register_kernel_internal(gaussian_blur, PIL.Image.Image)
 def _gaussian_blur_image_pil(
-    image: PIL.Image.Image, kernel_size: list[int], sigma: Optional[list[float]] = None
+    image: PIL.Image.Image, kernel_size: list[int], sigma: Optional[list[float]] = None, padding_mode: str = "reflect"
 ) -> PIL.Image.Image:
     t_img = pil_to_tensor(image)
-    output = gaussian_blur_image(t_img, kernel_size=kernel_size, sigma=sigma)
+    output = gaussian_blur_image(t_img, kernel_size=kernel_size, sigma=sigma, padding_mode=padding_mode)
     return to_pil_image(output, mode=image.mode)
 
 
 @_register_kernel_internal(gaussian_blur, tv_tensors.Video)
 def gaussian_blur_video(
-    video: torch.Tensor, kernel_size: list[int], sigma: Optional[list[float]] = None
+    video: torch.Tensor, kernel_size: list[int], sigma: Optional[list[float]] = None, padding_mode: str = "reflect"
 ) -> torch.Tensor:
-    return gaussian_blur_image(video, kernel_size, sigma)
+    return gaussian_blur_image(video, kernel_size, sigma, padding_mode=padding_mode)
 
 
 def gaussian_noise(inpt: torch.Tensor, mean: float = 0.0, sigma: float = 0.1, clip: bool = True) -> torch.Tensor:

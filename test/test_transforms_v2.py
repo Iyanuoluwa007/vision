@@ -3971,6 +3971,44 @@ class TestGaussianBlur:
     def test_transform(self, make_input, device, sigma):
         check_transform(transforms.GaussianBlur(kernel_size=3, sigma=sigma), make_input(device=device))
 
+    @pytest.mark.parametrize("padding_mode", ["constant", "edge", "reflect", "symmetric"])
+    def test_kernel_image_padding_mode(self, padding_mode):
+        check_kernel(
+            F.gaussian_blur_image, make_image(), kernel_size=[3, 5], sigma=[1.0, 2.0], padding_mode=padding_mode
+        )
+
+    @pytest.mark.parametrize("padding_mode", ["constant", "edge", "reflect", "symmetric"])
+    @pytest.mark.parametrize("make_input", [make_image_tensor, make_image_pil, make_image, make_video])
+    def test_transform_padding_mode(self, make_input, padding_mode):
+        check_transform(
+            transforms.GaussianBlur(kernel_size=3, padding_mode=padding_mode),
+            make_input(),
+            check_v1_compatibility=padding_mode == "reflect",
+        )
+
+    def test_padding_mode_errors(self):
+        with pytest.raises(ValueError, match="`padding_mode` should be either"):
+            F.gaussian_blur(make_image(), kernel_size=3, padding_mode="circular")
+
+        with pytest.raises(ValueError, match="Padding mode should be either"):
+            transforms.GaussianBlur(3, padding_mode="circular")
+
+        with pytest.raises(ValueError, match="can only be scripted for padding_mode='reflect'"):
+            torch.jit.script(transforms.GaussianBlur(3, padding_mode="symmetric"))
+
+    def test_symmetric_padding_preserves_intensity(self):
+        # Only the border pixels are lit, so the result depends on how the borders are padded. Unlike the default
+        # reflect padding, symmetric padding keeps the total intensity unchanged.
+        image = torch.zeros(1, 8, 8, dtype=torch.float64)
+        image[:, [0, -1], :] = 1
+        image[:, :, [0, -1]] = 1
+
+        reflect = F.gaussian_blur(image, kernel_size=5, sigma=1.0)
+        symmetric = F.gaussian_blur(image, kernel_size=5, sigma=1.0, padding_mode="symmetric")
+
+        torch.testing.assert_close(symmetric.sum(), image.sum())
+        assert reflect.sum() < image.sum()
+
     def test_assertions(self):
         with pytest.raises(ValueError, match="Kernel size should be a tuple/list of two integers"):
             transforms.GaussianBlur([10, 12, 14])
